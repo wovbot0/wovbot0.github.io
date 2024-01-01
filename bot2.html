@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>WW bot</title>
+	<style>
+		input{width: 140px}
+		input,button{font-size: 16px;font-family: inherit;padding: 6px}
+		button{width: 180px;margin-top: 10px}
+		input:focus,button:active{transform: scale(0.96);}
+	</style>
+</head>
+<body style="background: #111;text-align: center;color: #eee;font-size: 20px;font-family: 'Segoe UI', sans-serif;">
+	<p id="a">Add email and password of bot accounts</p>
+	
+	<button onclick="j(true)" id="b">READY</button>
+	<button onclick="j(false)">GO</button>
+	<!-- <button onclick="l()">Leave</button> -->
+	<!-- <button onclick="jl()">lobby</button> -->
+	<div>
+		<input placeholder="Grid" oninput="gid = parseInt(this.value)" style="width: 100px">
+		<button onclick="vote()">Vote</button>
+		<button onclick="jwtr()">JWT Refresh</button>
+		<!-- <button onclick="spect()">Vote</button> -->
+		<!-- <button onclick="report()">Report</button> -->
+	</div>
+<script>
+	// setTimeout(() => {
+	// 	j(true);
+	// }, 1000);
+	// setTimeout(() => {
+	// 	j(false)
+	// }, 9000);
+	// setTimeout(() => {
+	// 	location.reload()
+	// }, 15000);
+	// let gid = '4e52c792-a2c8-4e8b-8dd4-f8086d8fda86';
+	let ps = null;
+	//
+	let url3 = [];
+
+	let ws = [];
+
+	//fetch?
+	const password = 'abcer123'
+	const email = Array.from({ length: 13 }, (_, i) => `dedps${i + 30}@gmail.com`);
+
+	for(let i = 0; i < (email.length); i++){
+		if(!localStorage.getItem('url3')){
+			addB(email[i], password);
+		} else {
+			url3 = JSON.parse(localStorage.getItem('url3'));
+			document.getElementById('a').innerHTML = 'Bots: ' + url3.length;
+
+		}
+	}
+
+	function jwtr(){
+		localStorage.removeItem('url3');
+		location.reload();
+	}
+
+	function addB(em, pass){
+		// console.warn(em, pass);
+		document.getElementById('a').innerHTML = 'Updating';
+		fetch('https://api-auth.wolvesville.com/players/signInWithEmailAndPassword', {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+			
+			},
+			body: JSON.stringify({
+				email: em,
+				password: pass
+			})
+		}).then(res => res.json()).then(data => {
+			if(data.idToken){
+				// tkn.push(data.idToken);
+				// console.log(data.idToken);
+				//f5039f60-64ee-4455-9552-77aec1f2f415
+				url3.push(`wss://api-game.wolvesville.com/socket.io/?firebaseToken=${data.idToken}&gameMode=tr&ids=1&EIO=4&apiV=1&transport=websocket`);
+				localStorage.setItem('url3', JSON.stringify(url3));
+				document.getElementById('a').innerHTML = 'Bots: ' + url3.length;
+				document.getElementById('b').innerHTML = 'Ready ' + url3.length + ' bots';
+
+			} else document.getElementById('a').innerHTML = 'Error';
+		})
+	}
+
+
+	function j(sudo){
+		let ready = 0;
+		for(let b = 0; b < url3.length; b++){
+			if(sudo){
+				ws[b] = new WebSocket(url3[b]);
+				ws[b].onopen = (() => {
+					ready++;
+					document.getElementById('a').innerHTML = 'Ready: ' + ready;
+				}) 
+				setInterval(() => {
+					ws[b].send(`42["player-heartbeat"]`);
+					ws[b].send('3');
+				}, 20000);
+			}
+
+			else{
+
+				ws[b].send(`40`);
+
+				ws[b].onmessage = (m) => {
+					const d = JSON.parse(m.data.slice(2));
+
+					if(d[0] == 'game-started'){
+						if(!ps){
+							ps = JSON.parse(d[1]).players;
+						}
+					}
+
+					if(d[0] == 'lobby:start-game-voting'){
+						ws[b].send(`42["lobby:start-game-voting"]`);
+					}
+
+					if(d[0] == 'game-day-started'){
+						// ws[b].send(`42["game:chat-public:msg","{\\"msg\\":\\"W\\"}"]`);
+						// ws[b].send(`42["show-emoji","{\\"emojiId\\":\\"jmK\\"}"]`)
+						ws[b].send(`42["game-vote-to-skip"]`);
+						// setTimeout(() => {
+						// 	ws[b].send(`42["game:chat-public:msg","{\\"msg\\":\\"${"Wolvesville".split('').reverse().join('')}\\"}"]`);
+						// }, 30000);
+					}
+
+					if(m.data == '2'){
+						ws[b].send('3');
+					}
+				}
+				
+			}
+		}
+	}
+
+	function l(){
+		for(let i = 0; i < ws.length; i++){
+			// ws[i].send('42["game-commit-suicide"]');
+			ws[i].send('41')
+		}
+	}
+
+	function vote(){
+		const bc = ps.filter(p => p.gridIdx == gid-1)[0].id;
+		for (let i = 0; i < ws.length; i++){
+			ws[i].send(`42["game-day-vote-set","{\\"targetPlayerId\\":\\"${bc}\\"}"]`);
+		}
+	}
+
+</script>
+</body>
+</html>
